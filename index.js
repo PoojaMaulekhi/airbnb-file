@@ -1,84 +1,114 @@
-const express=require("express");
+const express = require("express");
 const mongoose = require("mongoose");
 const app=express();
-const listing=require("./listing.js");
-const path= require("path");
-const ejsMate=require("ejs-mate");
-const wrapAsync=require("./utils/wrapAsync.js");
-const { console } = require("inspector");
- const ExpressError=require("./utils/ExpressError.js");
-const {listingSchema}=require("./schema.js");
+const path = require("path");
+const ejs = require('ejs');
+const User=require("./schema.js");
+const session=require("express-session");
+const flash = require('connect-flash');
+const cookieParser = require('cookie-parser');
+ 
+
+app.use(cookieParser('secret'));
+
+const sessionOptions={
+  secret:"mysecret",
+  resave:false,
+  saveUninitialized:true,
+  cookie:{
+    httpOnly:true,
+    maxAge:7*24*60*60*1000,
+    expires:Date.now()+7*24*60*60*1000,
+  }
+};
+app.use(flash());
 
 
-app.set("view engine","ejs");
-app.use(express.urlencoded({extended:true}));
-app.set("views", path.join(__dirname,"views"));
-app.engine("ejs",ejsMate);
-app.use(express.static(path.join(__dirname,"/public")));
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+app.use(express.urlencoded({ extended: true }));
 
-main()
-.then(()=>{
-    console.log("working");
+
+app.get("/",(req,res)=>{
+    req.flash("success","hlw success");
+    res.redirect("/portfolio");
+});
+ 
+
+app.use(function(req, res, next) {
+  res.locals.success = req.flash("success");
+  res.locals.error=req.flash("here its a failure!!");
+  next();
+});
+
+// app.get("/portfolio/front", (req, res) => {
+//   res.render("front.ejs");
+// });
+
+app.get("/portfolio", (req, res) => {
+req.flash("success");
+  res.render("portfolio.ejs");
+});
+
+
+app.get('/portfolio/liked', (req, res) => {
+  res.render('liked.ejs');
+});
+
+
+app.get("/portfolio/education", (req, res) => {
+  res.render("education.ejs");
+});
+
+app.get("/portfolio/skills", (req, res) => {
+  res.render("skills.ejs");
+});
+
+app.get("/portfolio/about", (req, res) => {
+  res.render("about.ejs");
+});
+
+app.get("/portfolio/contact", (req, res) => {
+  res.render("contact.ejs");
+});
+
+app.get("/portfolio/project", (req, res) => {
+  res.render("project.ejs");
+});
+
+app.get("/portfolio/register", (req, res) => {
+  res.render("register.ejs");
+});
+
+app.post("/register",(req,res)=>{
+const newUser = new User({
+  username: req.body.username,
+  password: req.body.password,
+});
+newUser.save();
+console.log(req.body);
+res.render("portfolio.ejs");
 })
-.catch(err=>{
-   console.log(err)
-  });
+
+
+mongoose.connect('mongodb://localhost:27017/portfolio', { useNewUrlParser: true, useUnifiedTopology: true })
+  .then(() => {
+    console.log('MongoDB Connected');
+    main();
+  })
+  .catch(err => console.log(err));
 
 async function main() {
-  await mongoose.connect('mongodb://127.0.0.1:27017/project_airbnb');
+  try {
+    console.log("working");
+  } catch (err) {
+    console.error(err);
+  }
 }
-
-app.listen(8080,()=>{
-  console.log("port is hearing u");
+app.listen(3000, () => {
+  console.log("Server running on port 3000");
 });
 
-app.get("/",  (req,res)=>{
-      res.send("Start exploring  beautiful cities  all over the world");
-  });
-
-  app.get("/listings",wrapAsync(async (req,res)=>{
-   const allListings=await listing.find({});
-   res.render("index.ejs",{allListings});
-  }));
-
-  app.get("/listings/new",(req,res)=>{
-    res.render("new.ejs");
-  });
-
-  app.post("/listings",wrapAsync(async(req,res,next)=>{
-    // let result=listingSchema.validate(req.body);
-    // console.log(result);  request not get from hoppscoth
-      const newlisting=new listing(req.body.listing);
-      await newlisting.save();
-      res.redirect("/listings");
-  }));
-  
-//   // show error  part1 delete and edit route vali nhi dekhi
-app.get("/listings/:id", (req, res, next) => {
-  console.log("Received ID:", req.params.id);
-  next();
-});
-
-  app.get("/listings/:id", wrapAsync(async (req, res) => {
-        const { id } = req.params;
-        console.log(id);
-        const List = await listing.findById(id);
-        res.render("show.ejs", { List });
-}));
-
-app.all("*", (req, res, next) => {
-    next(new ExpressError(404, "Page not found"));
-});
-
-app.use((err, req, res, next) => {
-  const { statusCode = 500, message = "Something went wrong" } = err;
-  res.status(statusCode).render("error.ejs", { err });
-});
-
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
-  next();
-});
 
 
 
